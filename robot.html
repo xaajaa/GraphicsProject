@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+precision mediump float;
+
+attribute vec4 vPosition;
+attribute vec4 vNormal;
+
+uniform mat4 model2clip;
+uniform mat4 world2clip;
+uniform mat4 model2world;
+uniform mat4 world2modelT;
+
+varying vec4 fPosition;
+varying vec4 texPosition;
+varying vec4 fNormal;
+
+void
+main()
+  {
+    mat4 compare;
+    if (model2clip != compare){
+      fPosition = vPosition;
+      fNormal = vNormal;
+      gl_Position = model2clip * vPosition;
+    }
+    fPosition = model2world * vPosition;
+    texPosition = vPosition;
+    fNormal = world2modelT * vNormal; // THIS IS WRONG!!  EXERCISE 2
+    gl_Position = world2clip * model2world * vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+uniform vec4 lightI;
+uniform vec4 lightP;
+uniform vec4 eyeP;
+
+//color one is the normal based color
+//color 2 is the flat color
+uniform vec4 color;
+uniform vec4 color2;
+uniform int useNormal;
+uniform vec4 normal;
+
+uniform mat4 model2world;
+uniform mat4 world2modelT;
+
+varying vec4 fPosition;
+varying vec4 texPosition;
+varying vec4 fNormal;
+
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+
+void
+main()
+{
+    vec4 dump = color;
+    vec4 dump2 = color2;
+    vec4 Ia = vec4(0.1,0.1,0.1,1.0);
+    vec4 ambient = Ia * color2;
+
+    if (useNormal == 3){
+      vec3 n = vec3(0,0,0);
+      n = normalize(fNormal.xyz);
+
+      // Look at the following and then calculate diffuse.
+      // Use dot(n, l)
+      // Set flatOrRound = 1 at the top of view.js to check.
+      vec3 l = normalize((lightP - fPosition).xyz);
+      vec3 v = normalize((eyeP - fPosition).xyz);
+
+      vec3 diffuse = (lightI * color2 * max(dot(n, l), 0.0)).xyz;
+
+      // Calculate r and specular
+      vec4 Ia = vec4(0.1,0.1,0.1,1.0);
+      vec4 ambient = Ia * color2;
+
+      gl_FragColor = vec4(diffuse, 1.0) + ambient;
+    }
+    if (useNormal == 4){
+      vec3 n = vec3(0,0,0);
+      n = normalize(fNormal.xyz);
+
+      // Look at the following and then calculate diffuse.
+      // Use dot(n, l)
+      // Set flatOrRound = 1 at the top of view.js to check.
+      vec3 l = normalize((lightP - fPosition).xyz);
+      vec3 v = normalize((eyeP - fPosition).xyz);
+
+      vec3 diffuse = (lightI * color2 * max(dot(n, l), 0.0)).xyz;
+      vec3 r = normalize(2.0 * dot(n, l) * n - l);
+      vec3 specular = (lightI * pow(max(dot(v, r), 0.0), 100.0)).xyz;
+
+
+      // Calculate r and specular
+      vec4 Ia = vec4(0.1,0.1,0.1,1.0);
+      vec4 ambient = Ia * color2;
+
+      gl_FragColor = vec4(diffuse + specular, 1.0) + ambient;
+    }
+    if (useNormal == 2 || useNormal == 0){
+      vec3 n = vec3(0, 0, 0);
+      if (useNormal == 1)
+        n = normalize((world2modelT * normal).xyz); // THIS IS WRONG!! EXERCISE 2
+      else
+        n = normalize(fNormal.xyz);
+
+      // Look at the following and then calculate diffuse.
+      // Use dot(n, l)
+      // Set flatOrRound = 1 at the top of view.js to check.
+      vec3 l = normalize((lightP - fPosition).xyz);
+      vec3 v = normalize((eyeP - fPosition).xyz);
+
+      vec3 diffuse = (lightI * color2 * max(dot(n, l), 0.0)).xyz;
+
+      // Calculate r and specular
+      vec3 r = normalize(2.0 * dot(n, l) * n - l);
+      vec3 specular = (lightI * pow(max(dot(v, r), 0.0), 100.0)).xyz;
+    
+
+      // gl_FragColor = color;
+      // gl_FragColor = texture2D(tex1, fPosition.xy * vec2(0.5, -0.5) + 0.5);
+      if (useNormal == 2){
+        vec4 outcolor = texture2D(tex1, texPosition.xy * vec2(0.5, -0.5) + 0.5);
+        gl_FragColor = (vec4(diffuse + specular, 1.0) + outcolor*(0.75) + ambient);
+      }
+      if (useNormal == 0){
+        vec4 outcolor = texture2D(tex2, texPosition.xy * vec2(0.70, -.70) + 0.5);
+        gl_FragColor = (vec4(diffuse, 1.0) + outcolor*(0.75) + ambient);
+      }
+      
+   }
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/PVMat.js"></script>
+<script type="text/javascript" src="../Common/Texture2D.js"></script>
+<script type="text/javascript" src="Sphere.js"></script>
+<script type="text/javascript" src="Part.js"></script>
+<script type="text/javascript" src="view.js"></script>
+<script type="text/javascript" src="Picture.js"></script>
+<div>
+<font size="+2">Longing</font>
+</div>
+<div>
+zoom 1x <input id="slider" type="range"
+ min="100" max="1000" step="10" value="100" />
+ 10x
+</div>
+
+</head>
+
+<body>
+<button id="MyButton">Perspective</button>
+<button id="lookAt">Look At</button>
+<button id="ZPlus">z + 0.1</button>
+<button id="ZMinus">z - 0.1</button>
+<button id="VZPlus">vz + 0.1</button>
+<button id="VZMinus">vz - 0.1</button>
+<p>
+<canvas id="gl-canvas" width="960" height="540">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+</body>
+</html>
